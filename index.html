@@ -39,8 +39,7 @@
       width: 100px;
       height: 100px;
       border-radius: 50%;
-      background: url('slider.png') no-repeat center center;
-      background-size: cover;
+      background: #444;
       position: relative;
       margin: 0 auto;
     }
@@ -76,6 +75,8 @@
 
   <script>
     const audio = document.getElementById("micAudio");
+    let audioInitialized = false;
+
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = audioCtx.createMediaElementSource(audio);
     const gainNode = audioCtx.createGain();
@@ -87,6 +88,14 @@
     source.connect(gainNode);
     gainNode.connect(analyser);
     analyser.connect(audioCtx.destination);
+
+    // Ensure audio context resumes on user interaction
+    audio.addEventListener("play", () => {
+      if (!audioInitialized) {
+        audioCtx.resume();
+        audioInitialized = true;
+      }
+    });
 
     const gainDial = document.getElementById("gainDial");
     const knobPointer = document.getElementById("knobPointer");
