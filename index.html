@@ -1,1 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zoom H5 Gain Simulator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #1c1c1c;
+      color: #fff;
+      padding: 40px;
+    }
+    .knob-container {
+      margin: 40px auto;
+    }
+    .meter {
+      height: 25px;
+      width: 300px;
+      margin: 20px auto;
+      background: #333;
+      border-radius: 5px;
+      overflow: hidden;
+      display: flex;
+    }
+    .level {
+      height: 100%;
+      transition: width 0.1s;
+    }
+    .feedback {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    audio {
+      margin-top: 30px;
+    }
+    #gainDial {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: #444;
+      position: relative;
+      margin: 0 auto;
+    }
+    #knobPointer {
+      width: 4px;
+      height: 40px;
+      background: #fff;
+      position: absolute;
+      top: 10px;
+      left: 48px;
+      transform-origin: bottom center;
+      transform: rotate(135deg);
+    }
+  </style>
+</head>
+<body>
+  <h1>Zoom H5 Gain Knob Simulator</h1>
+  <p>Turn the dial to adjust the gain. Try to avoid clipping!</p>
+  <div class="knob-container">
+    <div id="gainDial">
+      <div id="knobPointer"></div>
+    </div>
+  </div>
+  <div class="meter">
+    <div id="levelBar" class="level" style="width: 0%; background: lime;"></div>
+  </div>
+  <div class="feedback" id="feedbackText">Adjust the gain to avoid clipping.</div>
+
+  <audio id="micAudio" controls loop>
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mp3">
+    Your browser does not support the audio element.
+  </audio>
+
+  <script>
+    const audio = document.getElementById("micAudio");
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaElementSource(audio);
+    const gainNode = audioCtx.createGain();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    source.connect(gainNode);
+    gainNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    const gainDial = document.getElementById("gainDial");
+    const knobPointer = document.getElementById("knobPointer");
+    let gainValue = 2.5;
+
+    gainDial.addEventListener("mousedown", (e) => {
+      const rect = gainDial.getBoundingClientRect();
+
+      function onMouseMove(e) {
+        const dx = e.clientX - (rect.left + rect.width / 2);
+        const dy = e.clientY - (rect.top + rect.height / 2);
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        angle = Math.max(-135, Math.min(135, angle));
+        knobPointer.style.transform = `rotate(${angle}deg)`;
+        gainValue = ((angle + 135) / 270) * 5; // Scale to 0-5
+        gainNode.gain.value = gainValue;
+      }
+
+      function onMouseUp() {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      }
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    });
+
+    const levelBar = document.getElementById("levelBar");
+    const feedbackText = document.getElementById("feedbackText");
+
+    function animate() {
+      requestAnimationFrame(animate);
+      analyser.getByteTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const val = dataArray[i] - 128;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / bufferLength);
+      const percent = Math.min((rms / 64) * 100 * gainValue, 100);
+      levelBar.style.width = `${percent}%`;
+      if (percent < 20) {
+        levelBar.style.background = "yellow";
+        feedbackText.textContent = "Too quiet";
+      } else if (percent < 85) {
+        levelBar.style.background = "lime";
+        feedbackText.textContent = "Good level";
+      } else {
+        levelBar.style.background = "red";
+        feedbackText.textContent = "Clipping! Turn it down!";
+      }
+    }
+
+    animate();
+  </script>
+</body>
+</html>
 
