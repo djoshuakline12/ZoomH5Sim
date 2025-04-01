@@ -76,24 +76,24 @@
   <script>
     const audio = document.getElementById("micAudio");
     let audioInitialized = false;
+    let source;
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioCtx.createMediaElementSource(audio);
     const gainNode = audioCtx.createGain();
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    source.connect(gainNode);
-    gainNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
-    // Ensure audio context resumes on user interaction
     audio.addEventListener("play", () => {
       if (!audioInitialized) {
-        audioCtx.resume();
-        audioInitialized = true;
+        audioCtx.resume().then(() => {
+          source = audioCtx.createMediaElementSource(audio);
+          source.connect(gainNode);
+          gainNode.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          audioInitialized = true;
+        });
       }
     });
 
